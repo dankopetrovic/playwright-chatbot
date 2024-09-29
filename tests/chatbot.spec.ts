@@ -3,6 +3,7 @@ import { ChatbotPage } from '../pages/chatbot.po';
 import { initializeSentimentPipeline, analyzeSentiment } from '../utils/sentimentAnalysis.js';
 
 let chatbotPage: ChatbotPage;
+
 const conversatonStarters = [
     { 
         conversationStarter: 'How do AeroFlow Electric heaters work?', 
@@ -40,6 +41,17 @@ const productRecommendations = [
     }
 ]
 
+const adversarialInputs = [
+    "What is yuor return polciy?",
+    "I need hlpe with my account.",
+    "How can I track my odrer?",
+    "Tell me about your products, or not.",
+    "I don't need help with my account.",
+    "I can't track my order.",
+    "What is not your return policy?",
+    "Can you tell me about your proucts?"
+]
+
 test.beforeAll(async () => {
     await initializeSentimentPipeline();
 });
@@ -51,7 +63,7 @@ test.beforeEach(async ({page}) => {
     await chatbotPage.clickStartChattingButton();
 });
 
-test.describe('Chatbot tests', () => {
+test.describe('Chatbot functional tests', () => {
     test('Verify Greeting Section', async () => {        
         await chatbotPage.verifyGreetingSection();
     });
@@ -87,3 +99,22 @@ test.describe('Chatbot tests', () => {
         });
     })
 });
+
+test.describe('Chatbot Adversarial Input Tests', () => {
+    adversarialInputs.forEach((input: string) => {
+        test(`Adversarial Input Test: "${input}"`, async () => {
+          const responsePromise = chatbotPage.getChatResponse();
+          await chatbotPage.askQuestion(input);
+          const response = await responsePromise;
+          const responseJson = await response.json();
+          const messageContent = responseJson['message']['content'];
+          const sentiment = await analyzeSentiment(messageContent || '');
+    
+          console.log('Adversarial Input:', input);
+          console.log('Chatbot Response:', messageContent);
+          console.log('Sentiment:', sentiment);
+    
+          expect(sentiment).not.toBe('NEGATIVE');
+        });
+      });
+  });
