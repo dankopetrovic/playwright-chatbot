@@ -44,7 +44,7 @@ export class ChatbotPage {
     expect(greeting).toBe('Hi there! How can I help you today?');
   }
 
-  async verifyConversationStartersDisplayed(conversationStarter) {
+  async verifyConversationStartersDisplayed(conversationStarter: string) {
     await expect(this.page.getByRole('button', { name: conversationStarter })).toBeVisible();
   }
 

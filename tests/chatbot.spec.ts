@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { ChatbotPage } from '../pages/chatbot.po';
+import { initializeSentimentPipeline, analyzeSentiment } from '../utils/sentimentAnalysis.js';
 
 let chatbotPage: ChatbotPage;
 const conversatonStarters = [
@@ -17,33 +18,40 @@ const conversatonStarters = [
     },
     { 
         conversationStarter: 'How eco-friendly are electric heaters?', 
-        expectedBotMessage: 'eco-friendly.'
+        expectedBotMessage: 'eco-friendly'
     }
 ]
 
 const productRecommendations = [
     { 
+        title: "40 square meters",
         productQuery: 'We want to heat a room of 40 square meters. Can you recommend what size radiator to do this please? We want to have them on feet so we can move them.', 
-        expectedBotMessage: ['AeroFlow MAXI', 'stand with wheels'] 
+        expectedBotMessages: ['AeroFlow MAXI', 'stand with wheels'] 
     },
     { 
+        title: "additional device",
         productQuery: 'Do I need additional device for app control of radiators?', 
-        expectedBotMessage: ['FlexiSmart Pro controller', 'Smartheat4U'] 
+        expectedBotMessages: ['FlexiSmart Pro', 'Smartheat4U'] 
     },
     {
+        title: "holiday home",
         productQuery: 'Which radiators would you suggest for heating a holiday home of 100 m2?',
-        expectedBotMessage: ['multiple radiators']
+        expectedBotMessages: ['MAXI', 'MIDI']
     }
 ]
+
+test.beforeAll(async () => {
+    await initializeSentimentPipeline();
+});
 
 test.beforeEach(async ({page}) => {
     chatbotPage = new ChatbotPage(page);
     await page.goto('/')
 
     await chatbotPage.clickStartChattingButton();
-})
+});
 
-test.describe('Functional chatbot tests', () => {
+test.describe('Chatbot tests', () => {
     test('Verify Greeting Section', async () => {        
         await chatbotPage.verifyGreetingSection();
     });
@@ -61,18 +69,21 @@ test.describe('Functional chatbot tests', () => {
         });
     });
 
-    test("Verify product recommendations from chat", async () => {
-        for (const productRecommendation of productRecommendations)
-        {
-            const question = productRecommendation.productQuery
-            const expectedResponses = productRecommendation.expectedBotMessage
+    productRecommendations.forEach(({ title, productQuery, expectedBotMessages}) => {
+        test(`Verify product recommendation - ${title}`, async () => {
             const responsePromise = chatbotPage.getChatResponse();
-            await chatbotPage.askQuestion(question);
+            await chatbotPage.askQuestion(productQuery);
             const response = await responsePromise;
             const responseJson = await response.json()
-            for (const expectedResponse of expectedResponses) {
-                expect.soft(responseJson['message']['content']).toContain(expectedResponse);
+            const messageContent = responseJson['message']['content']
+            const sentiment = await analyzeSentiment(messageContent || '');
+            console.log(messageContent)
+            console.log('Sentiment:', sentiment);
+
+            expect(sentiment).toBe('POSITIVE');
+            for (const expectedBotMessage of expectedBotMessages) {
+                expect.soft(messageContent).toContain(expectedBotMessage);
             }
-        }
-    });
+        });
+    })
 });
